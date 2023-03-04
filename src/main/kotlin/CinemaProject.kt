@@ -20,20 +20,13 @@ fun main() {
     // Создаем экземпляр объекта кинотеатра
     val cinema = VidnoeCinema(rowsCount, seatsCount)
 
-    // Создаем экземпляр объекта кассы кинотеатров
+    // Создаем экземпляр объекта кассы кинотеатров, в него передаем ссылки на кинотеатр и экран-терминал
     val ticketOffice = TicketOffice(cinema, screen)
 
-    screen.print("\nCinema:")
-    screen.print(cinema.schemeToString())
+    // Запускаем механизм кассы
+    ticketOffice.startWork()
 
-    screen.print("Enter a row number:")
-    val rowNumber = screen.readInt()
-    screen.print("Enter a seat number in that row:")
-    val seatNumber = screen.readInt()
-    screen.print("\nTicket price: \$${cinema.getTicketPrice(rowNumber, seatNumber)}\n")
-    cinema.sellSeat(rowNumber, seatNumber)
-    screen.print("Cinema:")
-    screen.print(cinema.schemeToString())
+    // Тут на этом всё, весь механизм меню и действий в кассе реализован
 }
 
 /**
@@ -60,7 +53,7 @@ interface Cinema {
  * Класс видновский кинотеатр
  * @param rowsCount Кол-во рядов
  * @param seatsCount Кол-во мест в одном ряду
- * @constructor Создать объект кинотеатр
+ * @constructor Создать объект видновский кинотеатр
  */
 class VidnoeCinema (rowsCount: Int, seatsCount: Int) : Cinema {
 
@@ -134,7 +127,7 @@ class VidnoeCinema (rowsCount: Int, seatsCount: Int) : Cinema {
             for (seat in 1.._seatsCount){
                 strBuilder.append(_seatsScheme[row - 1][seat - 1].toString() + " ")
             }
-            strBuilder.appendLine()
+            if (row != _rowsCount) strBuilder.appendLine()
         }
 
         return strBuilder.toString()
@@ -207,9 +200,49 @@ class ConsoleTerminalScreen : TerminalScreen {
  * @param terminalScreen объект реализующий интерфейс экрана терминала
  */
 class TicketOffice(cinema: Cinema, terminalScreen: TerminalScreen){
-    val cinema: Cinema
+    private val _cinema: Cinema
+    private val _terminal: TerminalScreen
 
     init {
-        this.cinema = cinema
+        this._cinema = cinema
+        _terminal = terminalScreen
+    }
+
+    /**
+     * Запустить механизм кассы
+     */
+    public fun startWork()
+    {
+        // Показываем меню и обрабатываем выбранное в вечном цикле
+        while (true) {
+            showMenu()
+            when (_terminal.readInt()) {
+                1 -> showSeats()
+                2 -> buyTicket()
+                0 -> break // Выход с цикла
+                else -> continue // Цикл заново
+            }
+        }
+    }
+
+    private fun buyTicket() {
+        _terminal.print("\nEnter a row number:")
+        val rowNumber = _terminal.readInt()
+        _terminal.print("Enter a seat number in that row:")
+        val seatNumber = _terminal.readInt()
+        _terminal.print("Ticket price: \$${_cinema.getTicketPrice(rowNumber, seatNumber)}")
+        _cinema.sellSeat(rowNumber, seatNumber)
+    }
+
+    private fun showSeats() {
+        _terminal.print("\nCinema:")
+        _terminal.print(_cinema.schemeToString())
+    }
+
+    private fun showMenu() {
+        _terminal.print("")
+        _terminal.print("1. Show the seats")
+        _terminal.print("2. Buy a ticket")
+        _terminal.print("0. Exit")
     }
 }
