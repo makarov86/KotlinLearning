@@ -44,9 +44,17 @@ interface Cinema {
     fun sellSeat(rowNumber: Int, seatNumber: Int)
 
     /**
+     * Свободно ли место?
+     */
+    fun isAvailable(rowNumber: Int, seatNumber: Int) : Boolean
+
+    /**
      * Вернет схему зала в виде строки
      */
     fun schemeToString() : String
+
+    val rows: Int
+    val seats: Int
 }
 
 /**
@@ -59,6 +67,12 @@ class VidnoeCinema (rowsCount: Int, seatsCount: Int) : Cinema {
 
     private val _rowsCount: Int
     private val _seatsCount: Int
+
+    public override val rows: Int
+        get() = _rowsCount
+
+    public override val seats: Int
+        get() = _seatsCount
 
     /**
      * Признак того что кинотеатр маленький
@@ -97,6 +111,7 @@ class VidnoeCinema (rowsCount: Int, seatsCount: Int) : Cinema {
      * Получить цену билета на конкретный ряд и место
      */
     public override fun getTicketPrice(rowNumber: Int, seatNumber: Int) : Int {
+        validateRowAndSeat(rowNumber, seatNumber)
         // Работает со схемой зала, в ней уже заранее просчитаны все цены
         return _seatsScheme[rowNumber - 1][seatNumber - 1].price!!
     }
@@ -105,11 +120,25 @@ class VidnoeCinema (rowsCount: Int, seatsCount: Int) : Cinema {
      * Продать место
      */
     public override fun sellSeat(rowNumber: Int, seatNumber: Int) {
-        // TODO проверить приделы
-        val seat = _seatsScheme[rowNumber - 1][seatNumber - 1]
+        validateRowAndSeat(rowNumber, seatNumber)
 
+        val seat = _seatsScheme[rowNumber - 1][seatNumber - 1]
         if (!seat.available) throw Exception("Already sold")
         seat.available = false
+    }
+
+    private fun validateRowAndSeat(rowNumber: Int, seatNumber: Int) {
+        if (rowNumber < 1 || rowNumber > _rowsCount || seatNumber < 0 || seatNumber > _seatsCount) {
+            throw IllegalArgumentException()
+        }
+    }
+
+    /**
+     * Свободно ли место?
+     */
+    override fun isAvailable(rowNumber: Int, seatNumber: Int): Boolean {
+        validateRowAndSeat(rowNumber, seatNumber)
+        return _seatsScheme[rowNumber - 1][seatNumber - 1].available
     }
 
     /**
@@ -219,19 +248,71 @@ class TicketOffice(cinema: Cinema, terminalScreen: TerminalScreen){
             when (_terminal.readInt()) {
                 1 -> showSeats()
                 2 -> buyTicket()
+                3 -> showStatistics()
                 0 -> break // Выход с цикла
                 else -> continue // Цикл заново
             }
         }
     }
 
+    private fun showStatistics() {
+        var purchasedTicketsCount : Int = 0
+        var percentage: Double
+        var currentIncome: Int = 0
+        var totalIncome: Int = 0
+
+        for (row in 1.._cinema.rows) {
+            for (seat in 1.._cinema.seats) {
+                val price = _cinema.getTicketPrice(row, seat)
+                if (!_cinema.isAvailable(row, seat)) {
+                    purchasedTicketsCount++
+                    currentIncome += price
+                }
+                totalIncome += price
+            }
+        }
+
+        percentage = purchasedTicketsCount.toDouble() / ((_cinema.seats * _cinema.rows).toDouble() / 100)
+
+        _terminal.print("")
+        _terminal.print("Number of purchased tickets: $purchasedTicketsCount")
+        _terminal.print("Percentage: " + "%.2f".format(percentage) + "%")
+        _terminal.print("Current income: \$$currentIncome")
+        _terminal.print("Total income: \$$totalIncome")
+    }
+
+    // Внутренний (приватный) метод покупки билета
     private fun buyTicket() {
-        _terminal.print("\nEnter a row number:")
-        val rowNumber = _terminal.readInt()
-        _terminal.print("Enter a seat number in that row:")
-        val seatNumber = _terminal.readInt()
-        _terminal.print("Ticket price: \$${_cinema.getTicketPrice(rowNumber, seatNumber)}")
-        _cinema.sellSeat(rowNumber, seatNumber)
+        // Мини структура данных, содержит сразу и ряд и место. (просто для удобства)
+        data class SeatCoordinates(val row: Int, val seat: Int)
+
+        // Функция внутренняя (функция внутри функции, т.е. метода класса))
+        fun askForRowAndSeat() : SeatCoordinates {
+            _terminal.print("\nEnter a row number:")
+            val rowNumber = _terminal.readInt()
+            _terminal.print("Enter a seat number in that row:")
+            val seatNumber = _terminal.readInt()
+
+            return SeatCoordinates(rowNumber, seatNumber)
+        }
+
+        // Вечный цикл пока не введут корректные координаты сводобного места в зале
+        var coordinates: SeatCoordinates
+        while (true) {
+            coordinates = askForRowAndSeat()
+
+            // Пробуем получить цену и купить билет
+            try {
+                val price = _cinema.getTicketPrice(coordinates.row, coordinates.seat)
+                _cinema.sellSeat(coordinates.row, coordinates.seat)
+                _terminal.print("\nTicket price: \$$price")
+                break
+            } catch (e: IllegalArgumentException) {
+                _terminal.print("\nWrong input!")
+            } catch (e: Exception) {
+                if (e.message == "Already sold") _terminal.print("\nThat ticket has already been purchased!")
+            }
+        }
     }
 
     private fun showSeats() {
@@ -243,6 +324,7 @@ class TicketOffice(cinema: Cinema, terminalScreen: TerminalScreen){
         _terminal.print("")
         _terminal.print("1. Show the seats")
         _terminal.print("2. Buy a ticket")
+        _terminal.print("3. Statistics")
         _terminal.print("0. Exit")
     }
 }
