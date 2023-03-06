@@ -1,5 +1,3 @@
-package machine
-
 const val BUY_ACTION_CODE = "buy"
 const val FILL_ACTION_CODE = "fill"
 const val TAKE_ACTION_CODE = "take"
@@ -161,7 +159,8 @@ class CoffeeMachineStorage(initState: CoffeeMachineInitState) {
         ingredients = Ingredients(
             ingredients.water + addIngredients.water,
             ingredients.milk + addIngredients.milk,
-            ingredients.coffeeBeans + addIngredients.coffeeBeans)
+            ingredients.coffeeBeans + addIngredients.coffeeBeans
+        )
     }
 
     /**
@@ -175,7 +174,8 @@ class CoffeeMachineStorage(initState: CoffeeMachineInitState) {
         ingredients = Ingredients(
             ingredients.water - subIngredients.water,
             ingredients.milk - subIngredients.milk,
-            ingredients.coffeeBeans - subIngredients.coffeeBeans)
+            ingredients.coffeeBeans - subIngredients.coffeeBeans
+        )
     }
 
     public fun getStorageInfo(): String
