@@ -1,20 +1,25 @@
 package parking
 
+const val SLOT_COUNT = 20
+
 fun main() {
     val terminal = ConsoleParkTerminal()
-    val spots = listOf<Spot>(Spot(Car("t675we750", "white")), Spot())
-    val cmd: Command
+    val spots = List<Spot>(SLOT_COUNT) { Spot() }
 
-    try {
-        cmd = parseCmd(terminal.readLine())
-    } catch (e: IllegalArgumentException) {
-        terminal.print("Error")
-        return
-    }
+    while (true) {
+        val cmd: Command
+        try {
+            cmd = parseCmd(terminal.readLine())
+        } catch (e: IllegalArgumentException) {
+            terminal.print("Error")
+            return
+        }
 
-    when (cmd.type) {
-        CommandType.Park -> park(terminal, spots, cmd.carNumber!!, cmd.carColor!!)
-        CommandType.Leave -> leave(terminal, spots, cmd.spotNumber!!)
+        when (cmd.type) {
+            CommandType.Park -> park(terminal, spots, cmd.carNumber!!, cmd.carColor!!)
+            CommandType.Leave -> leave(terminal, spots, cmd.spotNumber!!)
+            CommandType.Exit -> return
+        }
     }
 }
 
@@ -44,7 +49,7 @@ fun park(terminal: TerminalScreen, spots: List<Spot>, carNumber: String, carColo
     }
 
     if (freeSpotIndex == null) {
-        terminal.print("No free spots!")
+        terminal.print("Sorry, the parking lot is full.")
         return
     }
 
@@ -57,6 +62,11 @@ fun parseCmd(str: String) : Command {
     var cmd = str
     if (cmd.isBlank() || cmd.isEmpty()) throw IllegalArgumentException()
     val cmdParts = cmd.replace(">", "").trim().split(' ')
+
+    if (cmdParts.size == 1 && cmdParts[0] == CommandType.Exit.cmdTypeName) {
+        return Command(CommandType.Exit)
+    }
+
     if (cmdParts.size < 2) throw IllegalArgumentException()
 
     when (cmdParts[0]) {
@@ -75,7 +85,7 @@ fun parseCmd(str: String) : Command {
     }
 }
 
-enum class CommandType(val cmdTypeName: String) { Park("park"), Leave("leave") }
+enum class CommandType(val cmdTypeName: String) { Park("park"), Leave("leave"), Exit("exit") }
 
 data class Command(
     val type: CommandType,
