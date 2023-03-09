@@ -17,6 +17,9 @@ class ParkingController(parkingTerminal: TerminalScreen) {
         Park("park"),
         Leave("leave"),
         Status("status"),
+        RegByColor("reg_by_color"),
+        SpotByColor("spot_by_color"),
+        SpotByReg("spot_by_reg"),
         Exit("exit")
     }
 
@@ -26,6 +29,9 @@ class ParkingController(parkingTerminal: TerminalScreen) {
     class CreateCommand(val spotCount: Int) : Command(CommandType.Create)
     class ParkCommand(val carNumber: String, val carColor: String) : Command(CommandType.Park)
     class LeaveCommand(val spotNumber: Int) : Command(CommandType.Leave)
+    class RegByColor(val color: String) : Command(CommandType.RegByColor)
+    class SpotByReg(val reg: String) : Command(CommandType.SpotByReg)
+    class SpotByColor(val color: String) : Command(CommandType.SpotByColor)
 
     public fun start() {
         while (true) {
@@ -47,9 +53,27 @@ class ParkingController(parkingTerminal: TerminalScreen) {
                 is LeaveCommand -> leave(cmd.spotNumber)
                 is CreateCommand -> create(cmd.spotCount)
                 is StatusCommand -> showStatus()
+                is RegByColor -> regByColor(cmd.color)
+                is SpotByColor -> spotByColor(cmd.color)
+                is SpotByReg -> spotByReg(cmd.reg)
                 is ExitCommand -> return
             }
         }
+    }
+
+    private fun spotByReg(reg: String) {
+        val numbers = _parking!!.getSpotsByCarRegNumber(reg).map { it.number }.toList()
+        _terminal.print(if (numbers.isEmpty()) "No cars with registration number $reg were found." else numbers.joinToString(", "))
+    }
+
+    private fun spotByColor(color: String) {
+        val numbers = _parking!!.getSpotsByCarColor(color).map { it.number }.toList()
+        _terminal.print(if (numbers.isEmpty()) "No cars with color $color were found." else numbers.joinToString(", "))
+    }
+
+    private fun regByColor(color: String) {
+        val carNumbers = _parking!!.getSpotsByCarColor(color).map { it.car!!.number }.toList()
+        _terminal.print(if (carNumbers.isEmpty()) "No cars with color $color were found." else carNumbers.joinToString(", "))
     }
 
     private fun leave(spotNumber: Int) {
@@ -116,7 +140,7 @@ class ParkingController(parkingTerminal: TerminalScreen) {
             CommandType.Park.typeName.lowercase() -> {
                 if (cmdParts.size != 3) throw IllegalArgumentException()
                 val number = cmdParts[1]
-                var color = cmdParts.last().first().uppercase() + cmdParts.last().substring(1).lowercase()
+                var color = formatColor(cmdParts.last())
                 return ParkCommand(number, color)
             }
             CommandType.Leave.typeName.lowercase() -> {
@@ -124,9 +148,25 @@ class ParkingController(parkingTerminal: TerminalScreen) {
                 val spotNumber = cmdParts[1].toIntOrNull() ?: throw IllegalArgumentException()
                 return LeaveCommand(spotNumber)
             }
+            CommandType.RegByColor.typeName.lowercase() -> {
+                if (cmdParts.size != 2) throw IllegalArgumentException()
+                var color = formatColor(cmdParts.last())
+                return RegByColor(color)
+            }
+            CommandType.SpotByColor.typeName.lowercase() -> {
+                if (cmdParts.size != 2) throw IllegalArgumentException()
+                var color = formatColor(cmdParts.last())
+                return SpotByColor(color)
+            }
+            CommandType.SpotByReg.typeName.lowercase() -> {
+                if (cmdParts.size != 2) throw IllegalArgumentException()
+                return SpotByReg(reg = cmdParts[1])
+            }
             else -> throw IllegalArgumentException()
         }
     }
+
+    private fun formatColor(color: String) : String = color.first().uppercase() + color.substring(1).lowercase()
 }
 
 data class Car(val number: String, val color: String)
@@ -168,6 +208,15 @@ class ParkingLot(val spotCount: Int) {
     }
 
     fun getBusySpots(): List<Spot> = _spots.filter { spot -> spot.car != null }.toList()
+
+    fun getSpotsByCarColor(color: String): List<Spot> {
+        return _spots.filter { spot -> spot.car != null && spot.car!!.color.equals(color, ignoreCase = true) }
+            .toList()
+    }
+
+    fun getSpotsByCarRegNumber(number: String): List<Spot> {
+        return _spots.filter { spot -> spot.car != null && spot.car!!.number == number }.toList()
+    }
 }
 
 interface TerminalScreen {
